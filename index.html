@@ -1,0 +1,212 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>Note Bubbles</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: parent bar on top, one big floating bubble centred, piano keys at the bottom. Single bright sky theme for a toddler. */
+:root{
+  --sky:#d9f0ff; --sky2:#bfe6ff; --ink:#1f3a4d; --soft:#5d7a8c; --card:#ffffffcc;
+  --c:#ef476f; --d:#f78c3b; --e:#ffd23f; --f:#4cc06a; --g:#2fa8e8; --a:#8e6bdc; --b:#f07cc0;
+  --display:"Baloo 2","Nunito","Arial Rounded MT Bold",system-ui,sans-serif;
+  --body:"Nunito",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{margin:0;background:linear-gradient(var(--sky),var(--sky2));color:var(--ink);font-family:var(--body);
+  padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+#app{height:100%;display:flex;flex-direction:column;gap:8px;max-width:1100px;margin:0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-top:8px}
+.bar .grp{display:flex;gap:6px;align-items:center;background:var(--card);border-radius:14px;padding:4px 8px}
+.bar .lbl{font-size:12px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.06em}
+button{font:inherit;cursor:pointer}
+.chip{border:2px solid transparent;background:#fff;border-radius:999px;padding:6px 12px;font-weight:800;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff}
+.chip:focus-visible,.key:focus-visible,#listen:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.spacer{flex:1}
+#stars{font-family:var(--display);font-size:22px;font-weight:800;background:var(--card);border-radius:14px;padding:2px 12px}
+#stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+#bubble{position:relative;width:min(62vh,78vw,520px);aspect-ratio:1;border-radius:50%;border:0;padding:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;
+  background:radial-gradient(circle at 30% 28%,#ffffffee 0 7%,transparent 8%),radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--col) 55%,white) 0,var(--col) 70%,color-mix(in srgb,var(--col) 80%,black) 100%);
+  box-shadow:inset -14px -18px 40px #0000002a,inset 10px 10px 30px #ffffff66,0 18px 40px #1f3a4d33;
+  animation:bob 3.2s ease-in-out infinite;transition:transform .2s}
+#bubble.pop{animation:pop .45s ease-out forwards}
+#bubble.in{animation:rise .6s cubic-bezier(.2,1.4,.4,1) both,bob 3.2s ease-in-out .6s infinite}
+@keyframes bob{50%{transform:translateY(-14px) scale(1.02)}}
+@keyframes rise{from{transform:translateY(120px) scale(.2);opacity:0}}
+@keyframes pop{40%{transform:scale(1.25);opacity:1}to{transform:scale(1.7);opacity:0}}
+#letter{font-family:var(--display);font-weight:800;font-size:min(34vh,40vw,280px);line-height:1;text-shadow:0 4px 0 #0003}
+#letter.small{font-size:min(10vh,12vw,70px);margin-top:-6px}
+#staffbox{width:78%}
+#staffbox svg{width:100%;height:auto;display:block}
+.spark{position:absolute;border-radius:50%;pointer-events:none;animation:fly .9s ease-out forwards}
+@keyframes fly{to{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
+#hint{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-weight:700;color:var(--soft);font-size:15px;min-height:20px}
+#meter{height:8px;border-radius:4px;background:#fff9;overflow:hidden;margin:0 auto;width:min(320px,70%)}
+#meter i{display:block;height:100%;width:0;background:var(--g);transition:width .06s}
+#keys{display:flex;gap:6px;justify-content:center;padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}
+.key{flex:1;max-width:120px;height:clamp(70px,14vh,120px);border:0;border-radius:0 0 16px 16px;background:#fff;
+  box-shadow:0 6px 0 #00000026;font-family:var(--display);font-weight:800;font-size:28px;color:var(--ink);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;border-top:10px solid var(--k)}
+.key:active{transform:translateY(4px);box-shadow:0 2px 0 #00000026}
+#listen{border:0;background:var(--ink);color:#fff;border-radius:999px;padding:8px 16px;font-weight:800}
+#listen[aria-pressed="true"]{background:#2e9e57}
+@media (prefers-reduced-motion:reduce){#bubble,#bubble.in{animation:none}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&family=Nunito:wght@700;800&display=swap">
+
+<div id="app">
+  <div class="bar">
+    <div class="grp"><span class="lbl">Notes</span>
+      <button class="chip" data-set="CDE" aria-pressed="true">C D E</button>
+      <button class="chip" data-set="CDEFG" aria-pressed="false">C–G</button>
+      <button class="chip" data-set="CDEFGAB" aria-pressed="false">C–B</button></div>
+    <div class="grp"><span class="lbl">Bubble shows</span>
+      <button class="chip" data-view="letter" aria-pressed="true">Letter</button>
+      <button class="chip" data-view="staffletter" aria-pressed="false">Score + letter</button>
+      <button class="chip" data-view="staff" aria-pressed="false">Score</button></div>
+    <div class="grp"><button id="listen" aria-pressed="false">🎤 Listen to piano</button></div>
+    <span class="spacer"></span>
+    <div id="stars">⭐ 0</div>
+  </div>
+  <div id="stage">
+    <button id="bubble" class="in" aria-label="Bubble. Tap to hear the note.">
+      <div id="staffbox" hidden></div>
+      <div id="letter">C</div>
+    </button>
+    <div id="hint"></div>
+  </div>
+  <div id="meter" hidden><i></i></div>
+  <div id="keys"></div>
+</div>
+
+<script>
+const NOTES = {C:{m:60,col:'#ef476f'},D:{m:62,col:'#f78c3b'},E:{m:64,col:'#ffd23f'},F:{m:65,col:'#4cc06a'},
+               G:{m:67,col:'#2fa8e8'},A:{m:69,col:'#8e6bdc'},B:{m:71,col:'#f07cc0'}};
+const STAFF_Y = {C:110,D:105,E:100,F:95,G:90,A:85,B:80};
+let set = 'CDE', view = 'letter', target = 'C', last = '', stars = 0, busyUntil = 0, matchCount = 0, popping = false;
+
+const $ = s => document.querySelector(s);
+const bubble = $('#bubble'), letterEl = $('#letter'), staffBox = $('#staffbox'), hint = $('#hint');
+const freq = m => 440 * Math.pow(2, (m - 69) / 12);
+
+/* ---------- sound ---------- */
+let ctx = null;
+function audio(){ if(!ctx){ ctx = new (window.AudioContext||window.webkitAudioContext)(); } if(ctx.state==='suspended') ctx.resume(); return ctx; }
+function tone(m, dur=1.2, vol=.35){
+  const c = audio(), t = c.currentTime, g = c.createGain();
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  g.connect(c.destination);
+  [[1,'triangle',1],[2,'sine',.35],[3,'sine',.12]].forEach(([mul,type,a])=>{
+    const o = c.createOscillator(), og = c.createGain(); o.type = type; o.frequency.value = freq(m)*mul; og.gain.value = a;
+    o.connect(og); og.connect(g); o.start(t); o.stop(t+dur+.05);
+  });
+  busyUntil = performance.now() + dur*1000*0.6 + 250;
+}
+function jingle(){ const c = audio(); [0,4,7,12].forEach((s,i)=>setTimeout(()=>tone(72+s,.5,.2),i*90)); busyUntil = performance.now()+900; }
+
+/* ---------- display ---------- */
+function staffSVG(n){
+  const y = STAFF_Y[n];
+  let s = '<svg viewBox="0 0 300 170" aria-hidden="true"><g stroke="#fff" stroke-width="3" stroke-linecap="round">';
+  for(let i=0;i<5;i++){ const ly = 60+i*10; s += `<line x1="10" x2="290" y1="${ly}" y2="${ly}"/>`; }
+  if(n==='C') s += '<line x1="140" x2="190" y1="110" y2="110"/>';
+  s += '</g><text x="14" y="112" font-size="86" fill="#fff" font-family="\'Apple Symbols\',\'Noto Music\',\'Segoe UI Symbol\',serif">𝄞</text>';
+  const stemUp = y >= 90, nx = 165;
+  s += `<ellipse cx="${nx}" cy="${y}" rx="9" ry="6.5" fill="#fff" transform="rotate(-20 ${nx} ${y})"/>`;
+  s += stemUp ? `<line x1="${nx+8}" x2="${nx+8}" y1="${y}" y2="${y-34}" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`
+              : `<line x1="${nx-8}" x2="${nx-8}" y1="${y}" y2="${y+34}" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+  return s + '</svg>';
+}
+function render(){
+  bubble.style.setProperty('--col', NOTES[target].col);
+  const showStaff = view !== 'letter', showLetter = view !== 'staff';
+  staffBox.hidden = !showStaff; if(showStaff) staffBox.innerHTML = staffSVG(target);
+  letterEl.hidden = !showLetter; letterEl.textContent = target; letterEl.classList.toggle('small', showStaff && showLetter);
+  bubble.setAttribute('aria-label', 'Bubble ' + target + '. Tap to hear the note.');
+  hint.textContent = listening ? 'Play the note on the piano' : 'Tap the keys, or press Listen to use the piano';
+}
+function next(){
+  const pool = [...set].filter(n => n !== last); target = pool[Math.floor(Math.random()*pool.length)]; last = target;
+  popping = false; matchCount = 0; bubble.className = ''; void bubble.offsetWidth; bubble.className = 'in'; render();
+}
+function sparks(){
+  const r = bubble.getBoundingClientRect(), st = $('#stage').getBoundingClientRect();
+  for(let i=0;i<22;i++){
+    const d = document.createElement('div'), sz = 14 + Math.random()*26, a = Math.random()*6.28, dist = 120 + Math.random()*180;
+    d.className = 'spark';
+    d.style.cssText = `width:${sz}px;height:${sz}px;left:${r.left-st.left+r.width/2}px;top:${r.top-st.top+r.height/2}px;`+
+      `background:radial-gradient(circle at 30% 30%,#fff,${NOTES[target].col});--x:${Math.cos(a)*dist}px;--y:${Math.sin(a)*dist}px`;
+    $('#stage').appendChild(d); setTimeout(()=>d.remove(),1000);
+  }
+}
+function success(){
+  if(popping) return; popping = true; matchCount = 0;
+  bubble.className = 'pop'; sparks(); jingle(); stars++; $('#stars').textContent = '⭐ ' + stars;
+  setTimeout(next, 1100);
+}
+
+/* ---------- keys (tap fallback) ---------- */
+function buildKeys(){
+  const k = $('#keys'); k.innerHTML = '';
+  [...set].forEach(n=>{
+    const b = document.createElement('button'); b.className = 'key'; b.textContent = n; b.style.setProperty('--k', NOTES[n].col);
+    b.setAttribute('aria-label','Play '+n);
+    b.addEventListener('pointerdown', e=>{ e.preventDefault(); tone(NOTES[n].m, 1.0); if(n===target) success(); });
+    k.appendChild(b);
+  });
+}
+bubble.addEventListener('click', ()=>{ tone(NOTES[target].m, 1.2); });
+
+/* ---------- settings ---------- */
+document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{
+  set = b.dataset.set; document.querySelectorAll('[data-set]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  buildKeys(); last=''; next();
+}));
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{
+  view = b.dataset.view; document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b)); render();
+}));
+
+/* ---------- listening to a real piano ---------- */
+let listening = false, analyser = null, stream = null, timer = null, buf = null;
+function pitch(x, sr){
+  let rms = 0; for(let i=0;i<x.length;i++) rms += x[i]*x[i]; rms = Math.sqrt(rms/x.length);
+  $('#meter i').style.width = Math.min(100, rms*900) + '%';
+  if(rms < 0.012) return -1;
+  const W = 2048, minT = Math.floor(sr/1100), maxT = Math.min(Math.floor(sr/80), x.length-W-1);
+  const d = new Float32Array(maxT+1); let run = 0; d[0] = 1;
+  for(let t=1;t<=maxT;t++){ let s = 0; for(let i=0;i<W;i++){ const v = x[i]-x[i+t]; s += v*v; } run += s; d[t] = s*t/run; }
+  for(let t=minT;t<maxT;t++){
+    if(d[t] < 0.15){ while(t+1<maxT && d[t+1] < d[t]) t++;
+      const a = d[t-1], b = d[t], c = d[t+1], den = a - 2*b + c, sh = den ? (a - c)/(2*den) : 0; return sr/(t+sh); }
+  }
+  return -1;
+}
+function tick(){
+  if(!listening || popping) return;
+  analyser.getFloatTimeDomainData(buf);
+  if(performance.now() < busyUntil){ matchCount = 0; return; }
+  const f = pitch(buf, ctx.sampleRate);
+  if(f < 0){ matchCount = Math.max(0, matchCount-1); return; }
+  const m = 69 + 12*Math.log2(f/440), want = NOTES[target].m;
+  let diff = ((m - want) % 12 + 12) % 12; if(diff > 6) diff -= 12;
+  if(Math.abs(diff) < 0.45){ if(++matchCount >= 3) success(); } else matchCount = 0;
+}
+async function startListening(){
+  try{
+    audio();
+    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const src = ctx.createMediaStreamSource(stream); analyser = ctx.createAnalyser(); analyser.fftSize = 4096; buf = new Float32Array(analyser.fftSize);
+    src.connect(analyser); listening = true; timer = setInterval(tick, 50);
+    $('#listen').setAttribute('aria-pressed','true'); $('#listen').textContent = '🎤 Listening…'; $('#meter').hidden = false; render();
+  }catch(e){
+    hint.textContent = 'The microphone is not available here. Tap the keys below instead.';
+  }
+}
+function stopListening(){
+  listening = false; clearInterval(timer); if(stream) stream.getTracks().forEach(t=>t.stop());
+  $('#listen').setAttribute('aria-pressed','false'); $('#listen').textContent = '🎤 Listen to piano'; $('#meter').hidden = true; render();
+}
+$('#listen').addEventListener('click', ()=> listening ? stopListening() : startListening());
+
+buildKeys(); target = 'C'; last = 'C'; render();
+</script>
+</body></html>
