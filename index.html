@@ -41,6 +41,7 @@ button{font:inherit;cursor:pointer}
 .spark{position:absolute;border-radius:50%;pointer-events:none;animation:fly .9s ease-out forwards}
 @keyframes fly{to{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
 #hint{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-weight:700;color:var(--soft);font-size:15px;min-height:20px}
+#sens{width:110px;vertical-align:middle}
 #meter{height:8px;border-radius:4px;background:#fff9;overflow:hidden;margin:0 auto;width:min(320px,70%)}
 #meter i{display:block;height:100%;width:0;background:var(--g);transition:width .06s}
 #keys{display:flex;gap:6px;justify-content:center;padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}
@@ -63,7 +64,8 @@ button{font:inherit;cursor:pointer}
       <button class="chip" data-view="letter" aria-pressed="true">Letter</button>
       <button class="chip" data-view="staffletter" aria-pressed="false">Score + letter</button>
       <button class="chip" data-view="staff" aria-pressed="false">Score</button></div>
-    <div class="grp"><button id="listen" aria-pressed="false">🎤 Listen to piano</button></div>
+    <div class="grp"><button id="listen" aria-pressed="false">🎤 Listen to piano</button>
+      <label id="sensw" class="lbl" hidden>Mic boost <input type="range" id="sens" min="1" max="60" value="15"></label></div>
     <span class="spacer"></span>
     <div id="stars">⭐ 0</div>
   </div>
@@ -166,10 +168,12 @@ document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',(
 }));
 
 /* ---------- listening to a real piano ---------- */
+let gainNode = null;
+$('#sens').addEventListener('input', e => { if(gainNode) gainNode.gain.value = +e.target.value; });
 let listening = false, analyser = null, stream = null, timer = null, buf = null;
 function pitch(x, sr){
   let rms = 0; for(let i=0;i<x.length;i++) rms += x[i]*x[i]; rms = Math.sqrt(rms/x.length);
-  $('#meter i').style.width = Math.min(100, rms*900) + '%';
+  $('#meter i').style.width = Math.min(100, rms*300) + '%';
   if(rms < 0.012) return -1;
   const W = 2048, minT = Math.floor(sr/1100), maxT = Math.min(Math.floor(sr/80), x.length-W-1);
   const d = new Float32Array(maxT+1); let run = 0; d[0] = 1;
@@ -187,6 +191,7 @@ function tick(){
   const f = pitch(buf, ctx.sampleRate);
   if(f < 0){ matchCount = Math.max(0, matchCount-1); return; }
   const m = 69 + 12*Math.log2(f/440), want = NOTES[target].m;
+  hint.textContent = 'I hear: ' + ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][((Math.round(m)%12)+12)%12];
   let diff = ((m - want) % 12 + 12) % 12; if(diff > 6) diff -= 12;
   if(Math.abs(diff) < 0.45){ if(++matchCount >= 3) success(); } else matchCount = 0;
 }
@@ -195,7 +200,8 @@ async function startListening(){
     audio();
     stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     const src = ctx.createMediaStreamSource(stream); analyser = ctx.createAnalyser(); analyser.fftSize = 4096; buf = new Float32Array(analyser.fftSize);
-    src.connect(analyser); listening = true; timer = setInterval(tick, 50);
+    gainNode = ctx.createGain(); gainNode.gain.value = +$('#sens').value; src.connect(gainNode); gainNode.connect(analyser);
+    $('#sensw').hidden = false; listening = true; timer = setInterval(tick, 50);
     $('#listen').setAttribute('aria-pressed','true'); $('#listen').textContent = '🎤 Listening…'; $('#meter').hidden = false; render();
   }catch(e){
     hint.textContent = 'The microphone is not available here. Tap the keys below instead.';
@@ -203,7 +209,7 @@ async function startListening(){
 }
 function stopListening(){
   listening = false; clearInterval(timer); if(stream) stream.getTracks().forEach(t=>t.stop());
-  $('#listen').setAttribute('aria-pressed','false'); $('#listen').textContent = '🎤 Listen to piano'; $('#meter').hidden = true; render();
+  $('#listen').setAttribute('aria-pressed','false'); $('#listen').textContent = '🎤 Listen to piano'; $('#meter').hidden = true; $('#sensw').hidden = true; render();
 }
 $('#listen').addEventListener('click', ()=> listening ? stopListening() : startListening());
 
