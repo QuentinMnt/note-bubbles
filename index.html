@@ -25,16 +25,27 @@ button{font:inherit;cursor:pointer}
 #stars{font-family:var(--display);font-size:22px;font-weight:800;background:var(--card);border-radius:14px;padding:2px 12px}
 #stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
 #bubble{position:relative;width:min(62vh,78vw,520px);aspect-ratio:1;border-radius:50%;border:0;padding:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;
-  background:radial-gradient(circle at 30% 28%,#ffffffee 0 7%,transparent 8%),radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--col) 55%,white) 0,var(--col) 70%,color-mix(in srgb,var(--col) 80%,black) 100%);
-  box-shadow:inset -14px -18px 40px #0000002a,inset 10px 10px 30px #ffffff66,0 18px 40px #1f3a4d33;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--txt,#fff);
+  background:var(--col);
+  box-shadow:0 18px 40px #1f3a4d33;
   animation:bob 3.2s ease-in-out infinite;transition:transform .2s}
 #bubble.pop{animation:pop .45s ease-out forwards}
 #bubble.in{animation:rise .6s cubic-bezier(.2,1.4,.4,1) both,bob 3.2s ease-in-out .6s infinite}
 @keyframes bob{50%{transform:translateY(-14px) scale(1.02)}}
 @keyframes rise{from{transform:translateY(120px) scale(.2);opacity:0}}
 @keyframes pop{40%{transform:scale(1.25);opacity:1}to{transform:scale(1.7);opacity:0}}
-#letter{font-family:var(--display);font-weight:800;font-size:min(34vh,40vw,280px);line-height:1;text-shadow:0 4px 0 #0003}
+#letter{font-family:var(--display);font-weight:800;font-size:min(34vh,40vw,280px);line-height:1}
+[hidden]{display:none!important}
+#clock{font-size:18px;margin-right:10px;color:var(--soft)}
+#calt{font-family:var(--display);font-size:34px;font-weight:800}
+#cals{color:var(--soft);font-weight:700}
+#caldots{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:.08em}
+#calib .row{display:flex;gap:10px}
+#overlay,#calib{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:#d9f0ffee}
+#overlay .card,#calib .card{background:#fff;border-radius:28px;padding:28px 36px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;box-shadow:0 18px 40px #1f3a4d33}
+#ovt{font-family:var(--display);font-size:36px;font-weight:800}
+#ovs{font-family:var(--display);font-size:30px;font-weight:800}
+#go{font-size:24px;padding:12px 32px;background:var(--ink);color:#fff}
 #letter.small{font-size:min(10vh,12vw,70px);margin-top:-6px}
 #staffbox{width:78%}
 #staffbox svg{width:100%;height:auto;display:block}
@@ -63,11 +74,25 @@ button{font:inherit;cursor:pointer}
     <div class="grp"><span class="lbl">Bubble shows</span>
       <button class="chip" data-view="letter" aria-pressed="true">Letter</button>
       <button class="chip" data-view="staffletter" aria-pressed="false">Score + letter</button>
-      <button class="chip" data-view="staff" aria-pressed="false">Score</button></div>
+      <button class="chip" data-view="staff" aria-pressed="false">Score</button>
+      <button class="chip" data-view="sound" aria-pressed="false">Sound only</button></div>
+    <div class="grp"><span class="lbl">Timer</span>
+      <button class="chip" data-min="0" aria-pressed="true">Off</button>
+      <button class="chip" data-min="3" aria-pressed="false">3 min</button>
+      <button class="chip" data-min="5" aria-pressed="false">5 min</button>
+      <button class="chip" data-min="10" aria-pressed="false">10 min</button></div>
+    <div class="grp"><span class="lbl">Instrument</span>
+      <button class="chip" data-inst="piano" aria-pressed="true">Piano</button>
+      <button class="chip" data-inst="xylo" aria-pressed="false">Xylophone</button>
+      <button class="chip" id="calbtn" hidden>🎯 Calibrate</button></div>
+    <div class="grp"><span class="lbl">Match</span>
+      <button class="chip" data-tol="0.3" aria-pressed="false">Strict</button>
+      <button class="chip" data-tol="0.45" aria-pressed="true">Normal</button>
+      <button class="chip" data-tol="1" aria-pressed="false">Loose</button></div>
     <div class="grp"><button id="listen" aria-pressed="false">🎤 Listen to piano</button>
       <label id="sensw" class="lbl" hidden>Mic boost <input type="range" id="sens" min="1" max="60" value="15"></label></div>
     <span class="spacer"></span>
-    <div id="stars">⭐ 0</div>
+    <div id="stars"><span id="clock" hidden></span>⭐ <span id="n">0</span></div>
   </div>
   <div id="stage">
     <button id="bubble" class="in" aria-label="Bubble. Tap to hear the note.">
@@ -79,12 +104,21 @@ button{font:inherit;cursor:pointer}
   <div id="meter" hidden><i></i></div>
   <div id="keys"></div>
 </div>
+<div id="calib" hidden><div class="card"><div id="calt">Play the C bar</div><div id="cals">Hit it once and let it ring</div><div id="caldots"></div>
+  <div class="row"><button class="chip" id="calskip">Skip</button><button class="chip" id="calcancel">Cancel</button></div></div></div>
+<div id="overlay"><div class="card"><div id="ovt">Ready to play?</div><div id="ovs"></div><button id="go" class="chip">▶ Start</button></div></div>
 
 <script>
-const NOTES = {C:{m:60,col:'#ef476f'},D:{m:62,col:'#f78c3b'},E:{m:64,col:'#ffd23f'},F:{m:65,col:'#4cc06a'},
-               G:{m:67,col:'#2fa8e8'},A:{m:69,col:'#8e6bdc'},B:{m:71,col:'#f07cc0'}};
+const W = '#fff', K = '#1f3a4d';
+const NOTES = {C:{m:60,col:'#ef476f',txt:W},D:{m:62,col:'#f78c3b',txt:K},E:{m:64,col:'#ffd23f',txt:K},F:{m:65,col:'#4cc06a',txt:K},
+               G:{m:67,col:'#2fa8e8',txt:K},A:{m:69,col:'#8e6bdc',txt:W},B:{m:71,col:'#f07cc0',txt:K}};
 const STAFF_Y = {C:110,D:105,E:100,F:95,G:90,A:85,B:80};
 let set = 'CDE', view = 'letter', target = 'C', last = '', stars = 0, busyUntil = 0, matchCount = 0, popping = false;
+let revealed = false, playing = false, minutes = 0, endAt = 0, clockTimer = null;
+let instrument = 'piano', tol = 0.45, cal = {}, calibrating = false, calList = [], calIdx = 0, calBuf = [], calWait = 0;
+try{ cal = JSON.parse(localStorage.getItem('nb-cal') || '{}') || {}; }catch(e){ cal = {}; }
+const pcOf = n => (instrument === 'xylo' && cal[n] != null) ? cal[n] : NOTES[n].m % 12;
+const circ = (a, b) => { let d = ((a - b) % 12 + 12) % 12; return d > 6 ? d - 12 : d; };
 
 const $ = s => document.querySelector(s);
 const bubble = $('#bubble'), letterEl = $('#letter'), staffBox = $('#staffbox'), hint = $('#hint');
@@ -93,15 +127,16 @@ const freq = m => 440 * Math.pow(2, (m - 69) / 12);
 /* ---------- sound ---------- */
 let ctx = null;
 function audio(){ if(!ctx){ ctx = new (window.AudioContext||window.webkitAudioContext)(); } if(ctx.state==='suspended') ctx.resume(); return ctx; }
-function tone(m, dur=1.2, vol=.35){
+function tone(m, dur=1.2, vol=.35, hold=false){
   const c = audio(), t = c.currentTime, g = c.createGain();
-  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01);
+  g.gain.exponentialRampToValueAtTime(vol*.45,t+dur*.5); g.gain.exponentialRampToValueAtTime(.001,t+dur);
   g.connect(c.destination);
   [[1,'triangle',1],[2,'sine',.35],[3,'sine',.12]].forEach(([mul,type,a])=>{
     const o = c.createOscillator(), og = c.createGain(); o.type = type; o.frequency.value = freq(m)*mul; og.gain.value = a;
     o.connect(og); og.connect(g); o.start(t); o.stop(t+dur+.05);
   });
-  busyUntil = performance.now() + dur*1000*0.6 + 250;
+  busyUntil = performance.now() + (hold ? dur*1000 + 150 : dur*600 + 250);
 }
 function jingle(){ const c = audio(); [0,4,7,12].forEach((s,i)=>setTimeout(()=>tone(72+s,.5,.2),i*90)); busyUntil = performance.now()+900; }
 
@@ -116,19 +151,25 @@ function staffSVG(n){
   s += `<ellipse cx="${nx}" cy="${y}" rx="9" ry="6.5" fill="#fff" transform="rotate(-20 ${nx} ${y})"/>`;
   s += stemUp ? `<line x1="${nx+8}" x2="${nx+8}" y1="${y}" y2="${y-34}" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`
               : `<line x1="${nx-8}" x2="${nx-8}" y1="${y}" y2="${y+34}" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
-  return s + '</svg>';
+  return (s + '</svg>').replaceAll('#fff','currentColor');
 }
 function render(){
-  bubble.style.setProperty('--col', NOTES[target].col);
-  const showStaff = view !== 'letter', showLetter = view !== 'staff';
+  const hide = view === 'sound' && !revealed;
+  bubble.style.setProperty('--col', hide ? '#8fb3c9' : NOTES[target].col);
+  bubble.style.setProperty('--txt', hide ? '#fff' : NOTES[target].txt);
+  const showStaff = view === 'staff' || view === 'staffletter';
+  const showLetter = view === 'letter' || view === 'staffletter' || (view === 'sound' && revealed);
   staffBox.hidden = !showStaff; if(showStaff) staffBox.innerHTML = staffSVG(target);
-  letterEl.hidden = !showLetter; letterEl.textContent = target; letterEl.classList.toggle('small', showStaff && showLetter);
+  letterEl.hidden = !(showLetter || hide); letterEl.textContent = hide ? '♪' : target; letterEl.classList.toggle('small', showStaff && showLetter);
   bubble.setAttribute('aria-label', 'Bubble ' + target + '. Tap to hear the note.');
   hint.textContent = listening ? 'Play the note on the piano' : 'Tap the keys, or press Listen to use the piano';
 }
 function next(){
   const pool = [...set].filter(n => n !== last); target = pool[Math.floor(Math.random()*pool.length)]; last = target;
-  popping = false; matchCount = 0; bubble.className = ''; void bubble.offsetWidth; bubble.className = 'in'; render();
+  if(!playing) return;
+  popping = false; revealed = false; matchCount = 0; bubble.className = ''; void bubble.offsetWidth; bubble.className = 'in'; render();
+  busyUntil = performance.now() + 3700;
+  setTimeout(()=>{ if(playing && !popping) tone(NOTES[target].m, 3, .35, true); }, 500);
 }
 function sparks(){
   const r = bubble.getBoundingClientRect(), st = $('#stage').getBoundingClientRect();
@@ -141,10 +182,75 @@ function sparks(){
   }
 }
 function success(){
-  if(popping) return; popping = true; matchCount = 0;
-  bubble.className = 'pop'; sparks(); jingle(); stars++; $('#stars').textContent = '⭐ ' + stars;
-  setTimeout(next, 1100);
+  if(popping || !playing) return; popping = true; matchCount = 0;
+  bubble.className = 'pop'; sparks(); tone(NOTES[target].m, 2, .35, true); stars++; $('#n').textContent = stars;
+  revealed = true; render();
+  setTimeout(next, 2300);
 }
+function startClock(){
+  clearInterval(clockTimer);
+  if(!minutes){ $('#clock').hidden = true; return; }
+  endAt = Date.now() + minutes*60000; $('#clock').hidden = false;
+  const upd = () => { const r = endAt - Date.now(); const s = Math.max(0, Math.ceil(r/1000));
+    $('#clock').textContent = '⏱ ' + Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); if(r <= 0) finish(); };
+  upd(); clockTimer = setInterval(upd, 500);
+}
+function begin(){
+  audio(); $('#overlay').hidden = true; playing = true; stars = 0; $('#n').textContent = 0; last = ''; startClock(); next();
+}
+function finish(){
+  clearInterval(clockTimer); playing = false; if(listening) stopListening(); $('#clock').hidden = true;
+  $('#ovt').textContent = 'All done! 🎉'; $('#ovs').textContent = '⭐ ' + stars; $('#go').textContent = '▶ Play again';
+  $('#overlay').hidden = false;
+}
+$('#go').addEventListener('click', begin);
+
+/* ---------- xylophone: calibration and matching ---------- */
+document.querySelectorAll('[data-inst]').forEach(b=>b.addEventListener('click',()=>{
+  instrument = b.dataset.inst; document.querySelectorAll('[data-inst]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  $('#calbtn').hidden = instrument !== 'xylo';
+}));
+document.querySelectorAll('[data-tol]').forEach(b=>b.addEventListener('click',()=>{
+  tol = +b.dataset.tol; document.querySelectorAll('[data-tol]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+}));
+function calShow(){
+  const n = calList[calIdx];
+  $('#calt').textContent = 'Play the ' + n + ' bar';
+  $('#caldots').textContent = calList.map((x,i)=> i < calIdx ? (cal[x] != null ? x + ' ✓' : x + ' –') : x).join('   ');
+}
+function calAdvance(){
+  calIdx++; calBuf = []; calWait = 6;
+  if(calIdx >= calList.length){ endCalib(true); } else calShow();
+}
+function endCalib(save){
+  calibrating = false; $('#calib').hidden = true;
+  if(save){ try{ localStorage.setItem('nb-cal', JSON.stringify(cal)); }catch(e){} }
+  hint.textContent = save ? 'Xylophone calibrated.' : '';
+}
+function calStep(f){
+  if(calWait > 0){ calWait = f < 0 ? calWait - 1 : 6; return; }
+  if(f < 0){ calBuf = []; return; }
+  const pc = (((69 + 12*Math.log2(f/440)) % 12) + 12) % 12;
+  if(calBuf.length && Math.abs(circ(pc, calBuf[0])) > 0.5) calBuf = [];
+  calBuf.push(pc);
+  if(calBuf.length >= 8){
+    const base = calBuf[0], avg = base + calBuf.reduce((s,v)=>s + circ(v, base), 0) / calBuf.length;
+    cal[calList[calIdx]] = ((avg % 12) + 12) % 12; calIdx++; calIdx--; calAdvance();
+  }
+}
+$('#calbtn').addEventListener('click', async ()=>{
+  if(!listening) await startListening();
+  if(!listening) return;
+  calList = [...set]; calList.forEach(n => delete cal[n]);
+  calibrating = true; calIdx = 0; calBuf = []; calWait = 0;
+  $('#calib').hidden = false; calShow();
+});
+$('#calskip').addEventListener('click', calAdvance);
+$('#calcancel').addEventListener('click', ()=>endCalib(false));
+document.querySelectorAll('[data-min]').forEach(b=>b.addEventListener('click',()=>{
+  minutes = +b.dataset.min; document.querySelectorAll('[data-min]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  if(playing) startClock();
+}));
 
 /* ---------- keys (tap fallback) ---------- */
 function buildKeys(){
@@ -175,7 +281,7 @@ function pitch(x, sr){
   let rms = 0; for(let i=0;i<x.length;i++) rms += x[i]*x[i]; rms = Math.sqrt(rms/x.length);
   $('#meter i').style.width = Math.min(100, rms*300) + '%';
   if(rms < 0.012) return -1;
-  const W = 2048, minT = Math.floor(sr/1100), maxT = Math.min(Math.floor(sr/80), x.length-W-1);
+  const W = 2048, minT = Math.floor(sr/2400), maxT = Math.min(Math.floor(sr/80), x.length-W-1);
   const d = new Float32Array(maxT+1); let run = 0; d[0] = 1;
   for(let t=1;t<=maxT;t++){ let s = 0; for(let i=0;i<W;i++){ const v = x[i]-x[i+t]; s += v*v; } run += s; d[t] = s*t/run; }
   for(let t=minT;t<maxT;t++){
@@ -185,15 +291,19 @@ function pitch(x, sr){
   return -1;
 }
 function tick(){
-  if(!listening || popping) return;
+  if(!listening) return;
   analyser.getFloatTimeDomainData(buf);
   if(performance.now() < busyUntil){ matchCount = 0; return; }
+  if(calibrating){ calStep(pitch(buf, ctx.sampleRate)); return; }
+  if(popping || !playing) return;
   const f = pitch(buf, ctx.sampleRate);
   if(f < 0){ matchCount = Math.max(0, matchCount-1); return; }
   const m = 69 + 12*Math.log2(f/440), want = NOTES[target].m;
   hint.textContent = 'I hear: ' + ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][((Math.round(m)%12)+12)%12];
-  let diff = ((m - want) % 12 + 12) % 12; if(diff > 6) diff -= 12;
-  if(Math.abs(diff) < 0.45){ if(++matchCount >= 3) success(); } else matchCount = 0;
+  const dOf = n => Math.abs(circ(m, pcOf(n)));
+  let ok = dOf(target) < tol;
+  if(ok && instrument === 'xylo') ok = [...set].every(n => n === target || dOf(n) > dOf(target));
+  if(ok){ if(++matchCount >= 3) success(); } else matchCount = 0;
 }
 async function startListening(){
   try{
